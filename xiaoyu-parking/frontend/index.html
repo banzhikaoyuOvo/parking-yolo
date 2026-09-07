@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>小鱼智能停车场 · 实时引导终端</title>
+<!-- 字体：中文标题 + 数字 + 等宽监控字体。国内加载慢可换镜像 fonts.loli.net -->
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@400;500;700&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   小鱼智能停车场 · 引导终端样式
+   配色说明：
+   - 状态三色：绿(充足) / 琥珀(紧张) / 红(满位) —— 对应停车场引导屏行业惯例
+   - 青色(cyan)：科技/监控元素
+   - 蓝色：P 字停车标志（国标停车标识色）
+   ============================================================ */
+:root {
+  --bg: #0a1017;      --panel: #111a25;   --panel-2: #0d1520;
+  --line: #1e2d3d;    --txt: #dbe7f3;     --dim: #7d93a8;
+  --green: #35e08f;   --amber: #ffb454;   --red: #ff6b6b;
+  --cyan: #45c4ff;    --sign-blue: #1a78f0;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--txt);
+  font-family: 'Noto Sans SC', sans-serif;
+  min-height: 100vh; overflow-x: hidden;
+}
+/* 分层背景：光晕 + 蓝图网格（营造控制室氛围） */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(900px 500px at 12% -10%, rgba(69,196,255,.08), transparent 60%),
+    radial-gradient(800px 500px at 92% 110%, rgba(53,224,143,.06), transparent 60%);
+}
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image:
+    linear-gradient(rgba(125,147,168,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125,147,168,.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+header, main { position: relative; z-index: 1; }
+
+/* ===== 顶部状态栏 ===== */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; border-bottom: 1px solid var(--line);
+  background: rgba(13,21,32,.85); backdrop-filter: blur(6px);
+  position: sticky; top: 0; z-index: 10;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.p-sign {
+  width: 46px; height: 46px; border-radius: 10px;
+  background: linear-gradient(160deg, #2a86f5, #0f5ac8);
+  display: grid; place-items: center;
+  font-family: 'Rajdhani'; font-weight: 700; font-size: 28px; color: #fff;
+  box-shadow: 0 0 18px rgba(26,120,240,.45), inset 0 2px 0 rgba(255,255,255,.25);
+}
+.brand h1 { font-family: 'ZCOOL QingKe HuangYou'; font-size: 26px; letter-spacing: .14em; font-weight: 400; }
+.brand .en { font-size: 11px; color: var(--dim); letter-spacing: .22em; }
+.status-cluster { display: flex; align-items: center; gap: 18px; }
+.live { font-family: 'Share Tech Mono'; font-size: 13px; color: var(--red); display: flex; align-items: center; gap: 6px; letter-spacing: .15em; }
+.live i { width: 9px; height: 9px; border-radius: 50%; background: var(--red); animation: blink 1.2s steps(1) infinite; }
+.clock { font-family: 'Rajdhani'; font-weight: 600; font-size: 24px; letter-spacing: .08em; }
+@keyframes blink { 50% { opacity: .15; } }
+
+/* ===== 视图容器 ===== */
+.view { max-width: 1200px; margin: 0 auto; padding: 26px 28px 40px; animation: viewIn .45s ease both; }
+.hidden { display: none; }
+@keyframes viewIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ===== 总览页头部 ===== */
+.overview-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 20px; }
+.sec-title {
+  font-family: 'ZCOOL QingKe HuangYou'; font-size: 26px; font-weight: 400;
+  letter-spacing: .12em; position: relative; padding-left: 15px;
+}
+.sec-title::before {
+  content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 4px;
+  background: var(--cyan); border-radius: 2px; box-shadow: 0 0 10px var(--cyan);
+}
+.refresh-meter { text-align: right; font-size: 12px; color: var(--dim); font-family: 'Share Tech Mono'; }
+.meter { width: 150px; height: 4px; background: var(--panel-2); border: 1px solid var(--line); margin-top: 6px; }
+.meter i { display: block; height: 100%; background: var(--cyan); transition: width 1s linear; }
+
+/* ===== 监控卡片网格 ===== */
+.feeds { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+.feed {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  overflow: hidden; cursor: pointer;
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+.feed:hover {
+  transform: translateY(-5px); border-color: rgba(69,196,255,.55);
+  box-shadow: 0 14px 34px rgba(0,0,0,.5), 0 0 20px rgba(69,196,255,.12);
+}
+.feed-top {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel-2);
+}
+.cam-label { font-family: 'Share Tech Mono'; font-size: 12px; color: var(--cyan); letter-spacing: .1em; }
+.cam-name { font-size: 14px; font-weight: 700; letter-spacing: .1em; }
+.rec { margin-left: auto; font-family: 'Share Tech Mono'; font-size: 11px; color: var(--red); display: flex; align-items: center; gap: 5px; }
+.rec i { width: 7px; height: 7px; border-radius: 50%; background: var(--red); animation: blink 1s steps(1) infinite; }
+
+/* ===== 监控画面区 ===== */
+.shot { position: relative; aspect-ratio: 16/9; background: #060b11; overflow: hidden; }
+.shot img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.shot canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 3; }
+/* 扫描线 +  sweeps 光带（监控质感） */
+.scanlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.03) 0 1px, transparent 1px 3px);
+}
+.scanlines::after {
+  content: ""; position: absolute; left: 0; right: 0; height: 70px; top: -20%;
+  background: linear-gradient(180deg, transparent, rgba(69,196,255,.09), transparent);
+  animation: sweep 4.5s linear infinite;
+}
+@keyframes sweep { from { top: -20%; } to { top: 110%; } }
+/* 四角取景框 */
+.corner { position: absolute; width: 16px; height: 16px; border: 2px solid var(--cyan); opacity: .8; z-index: 2; }
+.tl { top: 9px; left: 9px; border-right: none; border-bottom: none; }
+.tr { top: 9px; right: 9px; border-left: none; border-bottom: none; }
+.bl { bottom: 9px; left: 9px; border-right: none; border-top: none; }
+.br { bottom: 9px; right: 9px; border-left: none; border-top: none; }
+/* 画面内 OSD 信息条 */
+.osd {
+  position: absolute; left: 12px; bottom: 10px; z-index: 4;
+  font-family: 'Share Tech Mono'; font-size: 11px; color: #cfe6ff;
+  background: rgba(6,11,17,.72); padding: 3px 8px; border-left: 2px solid var(--cyan);
+}
+.stamp {
+  position: absolute; right: 12px; bottom: 10px; z-index: 4;
+  font-family: 'Share Tech Mono'; font-size: 11px; color: var(--dim);
+  background: rgba(6,11,17,.72); padding: 3px 8px;
+}
+/* 画面切换故障闪烁特效 */
+.shot.glitching img { animation: glitch .35s steps(2) 1; filter: contrast(1.25) saturate(.5); }
+@keyframes glitch {
+  0% { transform: translateX(0); } 25% { transform: translateX(-4px); }
+  50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } 100% { transform: translateX(0); }
+}
+/* 图片加载失败 → 无信号 */
+.shot.no-signal::before {
+  content: "📡 信号接入中…"; position: absolute; inset: 0; z-index: 1;
+  display: grid; place-items: center; color: var(--dim); letter-spacing: .3em;
+  background: linear-gradient(160deg, #0d151f, #131e2b);
+}
+
+/* ===== 卡片数据区 ===== */
+.feed-data { display: flex; align-items: center; gap: 22px; padding: 16px 18px 8px; }
+.avail { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.avail .num { font-family: 'Rajdhani'; font-weight: 700; font-size: 52px; line-height: 1; transition: color .4s; }
+.avail .unit { font-size: 13px; color: var(--dim); }
+.occ { flex: 1; }
+/* LED 分段占用条 */
+.led-bar { height: 12px; background: #0a121b; border: 1px solid var(--line); position: relative; overflow: hidden; }
+.led-bar i { position: absolute; inset: 0; width: 0; transition: width .9s cubic-bezier(.22,1,.36,1); }
+.led-bar::after {
+  content: ""; position: absolute; inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 10px, var(--panel) 10px 13px);
+}
+.occ-meta { display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: var(--dim); font-family: 'Share Tech Mono'; }
+/* 三档状态配色（ok/busy/full） */
+.feed.ok   .num { color: var(--green); }  .feed.ok   .led-bar i { background: linear-gradient(90deg,#1fae6e,var(--green)); }
+.feed.busy .num { color: var(--amber); }  .feed.busy .led-bar i { background: linear-gradient(90deg,#d98324,var(--amber)); }
+.feed.full .num { color: var(--red); }    .feed.full .led-bar i { background: linear-gradient(90deg,#c73e3e,var(--red)); }
+
+/* 前往按钮 */
+.go-btn {
+  display: block; width: calc(100% - 36px); margin: 12px 18px 18px; padding: 12px;
+  background: transparent; border: 1px solid rgba(69,196,255,.4); color: var(--cyan);
+  font-size: 15px; font-weight: 700; letter-spacing: .2em; cursor: pointer;
+  font-family: 'Noto Sans SC'; border-radius: 4px;
+  transition: background .25s, box-shadow .25s;
+}
+.go-btn .arr { display: inline-block; transition: transform .25s; }
+.go-btn:hover { background: rgba(69,196,255,.12); box-shadow: 0 0 16px rgba(69,196,255,.2); }
+.go-btn:hover .arr { transform: translateX(6px); }
+.hint { text-align: center; margin-top: 26px; color: var(--dim); font-size: 13px; letter-spacing: .2em; animation: float 2.4s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(5px); } }
+
+/* ===== 详情页 ===== */
+.detail-head { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
+.back-btn {
+  background: transparent; border: 1px solid var(--line); color: var(--dim);
+  padding: 8px 16px; font-size: 14px; cursor: pointer; border-radius: 4px;
+  font-family: 'Noto Sans SC'; transition: color .2s, border-color .2s;
+}
+.back-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+.detail-title h2 { font-family: 'ZCOOL QingKe HuangYou'; font-size: 28px; font-weight: 400; letter-spacing: .12em; display: inline; margin-right: 12px; }
+.detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 22px; align-items: start; }
+.shot.big { aspect-ratio: 16/10; border: 1px solid var(--line); border-radius: 8px; }
+
+/* 检测框开关 */
+.bbox-toggle {
+  background: transparent; border: 1px solid var(--line); color: var(--dim);
+  padding: 6px 12px; font-size: 12px; cursor: pointer; border-radius: 4px;
+  font-family: 'Share Tech Mono'; transition: color .2s, border-color .2s;
+}
+.bbox-toggle.on { color: var(--green); border-color: var(--green); }
+
+.side { display: flex; flex-direction: column; gap: 18px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 10px; text-align: center; }
+.stat-num { display: block; font-family: 'Rajdhani'; font-weight: 700; font-size: 34px; line-height: 1.1; }
+.stat span:last-child { font-size: 12px; color: var(--dim); }
+.stat.avail-stat .stat-num { color: var(--green); }
+
+/* ===== AI 导航员控制台 ===== */
+.navigator { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.nav-head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 16px;
+  background: var(--panel-2); border-bottom: 1px solid var(--line);
+  font-weight: 700; letter-spacing: .1em;
+}
+.nav-head .online { margin-left: auto; font-size: 11px; color: var(--green); font-weight: 400; display: flex; align-items: center; gap: 5px; }
+.nav-head .online::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: blink 2s steps(1) infinite; }
+.nav-body {
+  margin: 14px; padding: 14px 16px; min-height: 190px; max-height: 260px; overflow-y: auto;
+  font-size: 15px; line-height: 1.9; border-left: 3px solid var(--cyan); background: var(--panel-2);
+}
+.cursor { color: var(--cyan); animation: blink .9s steps(1) infinite; }
+.replan {
+  display: block; width: calc(100% - 28px); margin: 0 14px 14px; padding: 10px;
+  background: transparent; border: 1px dashed var(--line); color: var(--dim);
+  cursor: pointer; font-size: 13px; border-radius: 4px; font-family: 'Noto Sans SC';
+  transition: color .2s, border-color .2s;
+}
+.replan:hover { color: var(--cyan); border-color: var(--cyan); }
+
+@media (max-width: 900px) {
+  .feeds, .detail-grid { grid-template-columns: 1fr; }
+  .avail .num { font-size: 40px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ==================== 顶部状态栏 ==================== -->
+<header class="topbar">
+  <div class="brand">
+    <div class="p-sign">P</div>
+    <div>
+      <h1>小鱼智能停车场</h1>
+      <div class="en">XIAOYU SMART PARKING · YOLO + RAG 实时引导</div>
+    </div>
+  </div>
+  <div class="status-cluster">
+    <span class="live"><i></i>LIVE</span>
+    <span class="clock" id="clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- ==================== 视图1：总览大屏 ==================== -->
+<main id="view-overview" class="view">
+  <div class="overview-head">
+    <h2 class="sec-title">实时车位监控</h2>
+    <div class="refresh-meter">
+      <span id="refresh-count">15</span>S 后自动切换画面
+      <div class="meter"><i id="meter-bar" style="width:100%"></i></div>
+    </div>
+  </div>
+
+  <div class="feeds">
+    <!-- B1 卡片 -->
+    <article class="feed" id="feed-B1" onclick="showDetail('B1')">
+      <div class="feed-top">
+        <span class="cam-label">CAM-B1-·</span>
+        <span class="cam-name">地下一层</span>
+        <span class="rec"><i></i>REC</span>
+      </div>
+      <div class="shot">
+        <img alt="地下一层监控画面">
+        <div class="scanlines"></div>
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <span class="osd">信号接入中</span>
+        <span class="stamp">--:--:--</span>
+      </div>
+      <div class="feed-data">
+        <div class="avail"><span class="num">0</span><span class="unit">空闲车位</span></div>
+        <div class="occ">
+          <div class="led-bar"><i></i></div>
+          <div class="occ-meta"><span class="occ-total">总车位 --</span><span class="occ-pct">占用 --%</span></div>
+        </div>
+      </div>
+      <button class="go-btn">前往该层停车 <span class="arr">→</span></button>
+    </article>
+
+    <!-- B2 卡片 -->
+    <article class="feed" id="feed-B2" onclick="showDetail('B2')">
+      <div class="feed-top">
+        <span class="cam-label">CAM-B2-·</span>
+        <span class="cam-name">地下二层</span>
+        <span class="rec"><i></i>REC</span>
+      </div>
+      <div class="shot">
+        <img alt="地下二层监控画面">
+        <div class="scanlines"></div>
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <span class="osd">信号接入中</span>
+        <span class="stamp">--:--:--</span>
+      </div>
+      <div class="feed-data">
+        <div class="avail"><span class="num">0</span><span class="unit">空闲车位</span></div>
+        <div class="occ">
+          <div class="led-bar"><i></i></div>
+          <div class="occ-meta"><span class="occ-total">总车位 --</span><span class="occ-pct">占用 --%</span></div>
+        </div>
+      </div>
+      <button class="go-btn">前往该层停车 <span class="arr">→</span></button>
+    </article>
+  </div>
+
+  <p class="hint">▼ 点击监控卡片，获取 AI 停车引导（快捷键 1 / 2）</p>
+</main>
+
+<!-- ==================== 视图2：楼层详情 + AI导航 ==================== -->
+<main id="view-detail" class="view hidden">
+  <div class="detail-head">
+    <button class="back-btn" onclick="showOverview()">← 返回总览 (Esc)</button>
+    <div class="detail-title">
+      <h2 id="d-floor-name">--</h2>
+      <span class="cam-label" id="d-cam">CAM-·</span>
+    </div>
+    <button class="bbox-toggle on" id="bbox-toggle" onclick="toggleBbox()" style="margin-left:auto;">🎯 YOLO检测框: 开</button>
+  </div>
+
+  <div class="detail-grid">
+    <!-- 大图 + 检测框画布 -->
+    <div class="shot big" id="d-shot">
+      <img id="d-img" alt="楼层监控画面">
+      <canvas id="d-canvas"></canvas>
+      <div class="scanlines"></div>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <span class="osd" id="d-osd">--</span>
+      <span class="stamp" id="d-stamp">--:--:--</span>
+    </div>
+
+    <aside class="side">
+      <!-- 车位统计 -->
+      <div class="stats">
+        <div class="stat"><span class="stat-num" id="d-total">--</span><span>总车位</span></div>
+        <div class="stat avail-stat"><span class="stat-num" id="d-avail">--</span><span>空闲</span></div>
+        <div class="stat"><span class="stat-num" id="d-occ">--</span><span>占用率</span></div>
+      </div>
+
+      <!-- AI 导航员 -->
+      <div class="navigator">
+        <div class="nav-head">🤖 AI 导航员 <span class="online">在线</span></div>
+        <div class="nav-body" id="nav-body">正在为您规划路线…</div>
+        <button class="replan" onclick="streamNav(currentFloor)">↻ 重新规划路线</button>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<script>
+/* ============================================================
+   小鱼智能停车场 · 前端逻辑
+   说明：本页面由 Flask 同源托管（app.py 的 / 路由），
+        因此所有 fetch 使用相对路径，无需配置端口/跨域。
+   ============================================================ */
+
+// ---------- 全局状态 ----------
+let currentFloor = null;   // 当前详情页楼层
+let overviewData = {};     // 大屏缓存的两层数据（含 detections）
+let navAbort = null;       // 用于中断上一次 SSE 流
+let bboxOn = true;         // YOLO 检测框显示开关
+let currentDetections = [];// 当前详情页的检测框数据
+
+// ---------- 后端不可用时的兜底数据（保证演示不崩） ----------
+const MOCK = {
+  B1: { floor_id:'B1', floor_name:'地下一层', cam_label:'CAM-B1-03', image_url:'/assets/cameras/b1_50.jpg',
+        total_spaces:120, occupied:60, vacant:60, occupancy_rate:50, detections:[] },
+  B2: { floor_id:'B2', floor_name:'地下二层', cam_label:'CAM-B2-02', image_url:'/assets/cameras/b2_20.jpg',
+        total_spaces:80, occupied:16, vacant:64, occupancy_rate:20, detections:[] },
+};
+const MOCK_NAV = {
+  B1: '收到！地下一层目前车位较为充足，剩余 60/120 个空位。请沿入口匝道下行，右转沿蓝色导引标线行驶约50米，推荐前往B区中段停放。（离线演示文本，启动后端后由 RAG+LLM 实时生成）',
+  B2: '收到！地下二层目前车位非常充足，剩余 64/80 个空位。请沿匝道下行，经B1层继续下行，沿黄色标线行驶，推荐前往A区停放。（离线演示文本，启动后端后由 RAG+LLM 实时生成）',
+};
+
+// ---------- 工具函数 ----------
+const nowStr = () => new Date().toTimeString().slice(0, 8);
+
+// 数字滚动动画（从0滚到目标值）
+function countUp(el, target) {
+  const dur = 800, start = performance.now();
+  (function tick(t) {
+    const p = Math.min(1, (t - start) / dur);
+    el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3)));
+    if (p < 1) requestAnimationFrame(tick);
+  })(start);
+}
+
+// 根据占用率返回状态档位：ok(≤40) / busy(≤80) / full(>80)
+function levelOf(d) {
+  if (d.occupancy_rate <= 40) return 'ok';
+  if (d.occupancy_rate <= 80) return 'busy';
+  return 'full';
+}
+
+// ---------- 总览渲染 ----------
+function renderFeed(fid, d) {
+  const card = document.getElementById('feed-' + fid);
+  card.querySelector('.cam-label').textContent = d.cam_label || ('CAM-' + fid);
+  const img = card.querySelector('img');
+  const shot = card.querySelector('.shot');
+
+  // 画面变化 → 故障闪烁特效
+  if (img.dataset.src !== d.image_url) shot.classList.add('glitching');
+  setTimeout(() => shot.classList.remove('glitching'), 400);
+
+  img.dataset.src = d.image_url;
+  img.src = d.image_url;
+  img.onerror = () => shot.classList.add('no-signal');
+  img.onload  = () => shot.classList.remove('no-signal');
+
+  countUp(card.querySelector('.num'), d.vacant);
+  card.querySelector('.led-bar i').style.width = d.occupancy_rate + '%';
+  card.querySelector('.occ-total').textContent = '总车位 ' + d.total_spaces;
+  card.querySelector('.occ-pct').textContent = '占用 ' + d.occupancy_rate + '%';
+  card.querySelector('.osd').textContent = 'YOLO已检测 ' + d.total_spaces + ' 个车位';
+  card.querySelector('.stamp').textContent = nowStr();
+
+  card.classList.remove('ok', 'busy', 'full');
+  card.classList.add(levelOf(d));
+}
+
+async function loadOverview() {
+  let data;
+  try {
+    const res = await fetch('/api/screen/main');
+    data = (await res.json()).data;
+  } catch (e) {
+    data = MOCK;   // 后端未启动 → 兜底，页面不白屏
+  }
+  overviewData = data;
+  renderFeed('B1', data.B1);
+  renderFeed('B2', data.B2);
+}
+
+// ---------- 视图切换 ----------
+function showOverview() {
+  document.getElementById('view-detail').classList.add('hidden');
+  const ov = document.getElementById('view-overview');
+  ov.classList.remove('hidden');
+  ov.style.animation = 'none'; void ov.offsetWidth; ov.style.animation = '';
+  loadOverview();
+}
+
+async function showDetail(fid) {
+  currentFloor = fid;
+  document.getElementById('view-overview').classList.add('hidden');
+  const dv = document.getElementById('view-detail');
+  dv.classList.remove('hidden');
+  dv.style.animation = 'none'; void dv.offsetWidth; dv.style.animation = '';
+
+  // 优先读后端（与大屏一致），失败则用本地缓存
+  let d;
+  try {
+    const res = await fetch('/api/floor/' + fid);
+    d = (await res.json()).data;
+  } catch (e) {
+    d = overviewData[fid] || MOCK[fid];
+  }
+
+  // 填充文本
+  document.getElementById('d-floor-name').textContent = d.floor_name;
+  document.getElementById('d-cam').textContent = d.cam_label || ('CAM-' + fid);
+  document.getElementById('d-osd').textContent = 'YOLO已检测 ' + d.total_spaces + ' 个车位';
+  document.getElementById('d-stamp').textContent = nowStr();
+  document.getElementById('d-total').textContent = d.total_spaces;
+  countUp(document.getElementById('d-avail'), d.vacant);
+  const occEl = document.getElementById('d-occ');
+  occEl.textContent = d.occupancy_rate + '%';
+  occEl.style.color = d.occupancy_rate <= 40 ? 'var(--green)' : d.occupancy_rate <= 80 ? 'var(--amber)' : 'var(--red)';
+
+  // 加载大图 + 检测框
+  currentDetections = d.detections || [];
+  const img = document.getElementById('d-img');
+  img.onload = () => drawDetections();
+  img.onerror = () => img.closest('.shot').classList.add('no-signal');
+  img.src = d.image_url;
+
+  // 流式导航
+  streamNav(fid);
+}
+
+// ---------- YOLO 检测框绘制 ----------
+function drawDetections() {
+  const canvas = document.getElementById('d-canvas');
+  const img = document.getElementById('d-img');
+  const ctx = canvas.getContext('2d');
+  const dispW = img.clientWidth, dispH = img.clientHeight;
+  canvas.width = dispW; canvas.height = dispH;
+  ctx.clearRect(0, 0, dispW, dispH);
+
+  if (!bboxOn || !img.naturalWidth || !currentDetections.length) return;
+
+  // object-fit: cover 的坐标换算（关键：计算缩放与偏移）
+  const scale = Math.max(dispW / img.naturalWidth, dispH / img.naturalHeight);
+  const offX = (dispW - img.naturalWidth * scale) / 2;
+  const offY = (dispH - img.naturalHeight * scale) / 2;
+
+  currentDetections.forEach(det => {
+    const [x1, y1, x2, y2] = det.bbox;
+    const sx = x1 * scale + offX, sy = y1 * scale + offY;
+    const sw = (x2 - x1) * scale, sh = (y2 - y1) * scale;
+
+    const isEmpty = det.class === 'space-empty';
+    const color = isEmpty ? '#35e08f' : (det.class === 'space-occupied' ? '#ff6b6b' : '#45c4ff');
+
+    ctx.strokeStyle = color; ctx.lineWidth = 2;
+    ctx.strokeRect(sx, sy, sw, sh);
+    // 半透明填充
+    ctx.fillStyle = color + '22';
+    ctx.fillRect(sx, sy, sw, sh);
+    // 标签
+    const label = (isEmpty ? '空 ' : '占 ') + det.confidence.toFixed(2);
+    ctx.font = '11px "Share Tech Mono"';
+    const tw = ctx.measureText(label).width + 8;
+    ctx.fillStyle = color;
+    ctx.fillRect(sx, sy - 16, tw, 15);
+    ctx.fillStyle = '#0a1017';
+    ctx.fillText(label, sx + 4, sy - 5);
+  });
+}
+
+function toggleBbox() {
+  bboxOn = !bboxOn;
+  const btn = document.getElementById('bbox-toggle');
+  btn.textContent = bboxOn ? '🎯 YOLO检测框: 开' : '🎯 YOLO检测框: 关';
+  btn.classList.toggle('on', bboxOn);
+  drawDetections();
+}
+
+// 窗口缩放时重绘检测框
+window.addEventListener('resize', () => {
+  if (!document.getElementById('view-detail').classList.contains('hidden')) drawDetections();
+});
+
+// ---------- AI导航员：SSE 流式接收 ----------
+async function streamNav(fid) {
+  if (navAbort) navAbort.abort();
+  navAbort = new AbortController();
+
+  const body = document.getElementById('nav-body');
+  body.innerHTML = '<span class="cursor">▍</span>';
+  let text = '';
+  const push = (t) => {
+    text += t;
+    body.innerHTML = text + '<span class="cursor">▍</span>';
+    body.scrollTop = body.scrollHeight;
+  };
+
+  try {
+    const res = await fetch('/api/navigate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ floor: fid }),
+      signal: navAbort.signal,
+    });
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop();
+      for (const p of parts) {
+        if (!p.startsWith('data: ')) continue;
+        const payload = p.slice(6);
+        if (payload === '[DONE]') { body.innerHTML = text; return; }
+        push(JSON.parse(payload).token);
+      }
+    }
+    body.innerHTML = text;
+  } catch (e) {
+    if (e.name === 'AbortError') return;
+    // 后端未启动 → 本地模拟打字机
+    const mock = MOCK_NAV[fid]; let i = 0;
+    const timer = setInterval(() => {
+      push(mock.slice(i, i + 2)); i += 2;
+      if (i >= mock.length) { clearInterval(timer); body.innerHTML = text; }
+    }, 40);
+  }
+}
+
+// ---------- 时钟 + 自动刷新 ----------
+setInterval(() => { document.getElementById('clock').textContent = nowStr(); }, 1000);
+
+let countdown = 15;
+setInterval(() => {
+  countdown--;
+  document.getElementById('refresh-count').textContent = countdown;
+  document.getElementById('meter-bar').style.width = (countdown / 15 * 100) + '%';
+  if (countdown <= 0) {
+    countdown = 15;
+    if (!document.getElementById('view-overview').classList.contains('hidden')) loadOverview();
+  }
+}, 1000);
+
+// ---------- 快捷键 ----------
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') showOverview();
+  if (e.key === '1') showDetail('B1');
+  if (e.key === '2') showDetail('B2');
+});
+
+// ---------- 启动 ----------
+loadOverview();
+</script>
+</body>
+</html>

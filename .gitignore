@@ -1,0 +1,50 @@
+﻿# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+dist/
+*.egg-info/
+# === 排除特定目录 (新增) ===
+人工智能方向毕业实习报告代码/
+毕业设计/
+# === AI 模型权重 ===
+# 默认忽略所有模型文件
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# ✅ 仅允许项目必需的推理模型（必须在通配符之后）
+!xiaoyu-parking/models/
+!xiaoyu-parking/models/best.pt
+
+# === 敏感配置 ===
+.env
+.env.local
+config/secrets.yaml
+*.key
+
+# === IDE & OS ===
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# === 前端 ===
+node_modules/
+frontend/dist/
+frontend/build/
+
+# === YOLO 训练产物 ===
+runs/
+datasets/
+# === 临时测试文件 ===
+Python环境导入测试.py
