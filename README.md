@@ -32,12 +32,6 @@
 
 
 
-### AI 导航（SSE 流式输出）
-
-![AI 导航](docs/screenshots/navigation.gif)
-
-
-
 ### YOLO 检测框可视化
 
 ![检测框](docs/screenshots/detections.png)
