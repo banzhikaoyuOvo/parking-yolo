@@ -1,0 +1,55 @@
+# === Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# === 归档目录（不属于本项目） ===
+人工智能方向毕业实习报告代码/
+毕业设计/
+runs/
+datasets/
+
+# === AI 模型权重（用 Release 提供，不入库） ===
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# === 敏感配置 ===
+.env
+.env.local
+config/secrets.yaml
+*.key
+
+# === IDE & OS ===
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# === 前端 ===
+node_modules/
+frontend/dist/
+frontend/build/
+
+# === 临时 / 审计 ===
+Python环境导入测试.py
+_project_audit/
+audit-project.ps1
+
+# === 环境变量（敏感） ===
+.env
+
+# === 临时状态记录 ===
+.local/
+README.md.bak
