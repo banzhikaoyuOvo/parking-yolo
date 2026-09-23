@@ -180,79 +180,79 @@ LLM 只负责 ──把事实和约束组织成自然语言
 
 flowchart TB
 
-&#x20;   subgraph Frontend["前端 (frontend/index.html)"]
+    subgraph Frontend["前端 (frontend/index.html)"]
 
-&#x20;       OV[总览大屏<br/>B1/B2 卡片]
+        OV[总览大屏<br/>B1/B2 卡片]
 
-&#x20;       DT[详情页<br/>大图 + 检测框 + AI 导航]
+        DT[详情页<br/>大图 + 检测框 + AI 导航]
 
-&#x20;   end
-
-
-
-&#x20;   subgraph Backend["后端 (app.py - Flask)"]
-
-&#x20;       API1[GET /api/screen/main]
-
-&#x20;       API2[GET /api/floor/:id]
-
-&#x20;       API3[POST /api/navigate]
-
-&#x20;       CACHE[(内存缓存<br/>_screen_state)]
-
-&#x20;   end
+    end
 
 
 
-&#x20;   subgraph Services["服务层 (services/)"]
+    subgraph Backend["后端 (app.py - Flask)"]
 
-&#x20;       YOLO[yolo_service<br/>YOLOv8 推理]
+        API1[GET /api/screen/main]
 
-&#x20;       RAG[rag_service<br/>知识检索]
+        API2[GET /api/floor/:id]
 
-&#x20;       LLM[llm_service<br/>DeepSeek 流式]
+        API3[POST /api/navigate]
 
-&#x20;   end
+        CACHE[(内存缓存<br/>_screen_state)]
 
-
-
-&#x20;   subgraph Storage["资源"]
-
-&#x20;       IMGS[assets/cameras/*.jpg]
-
-&#x20;       KB[knowledge/parking_nav.txt]
-
-&#x20;       MODEL[models/best.pt]
-
-&#x20;   end
+    end
 
 
 
-&#x20;   OV -->|15秒轮询| API1
+    subgraph Services["服务层 (services/)"]
 
-&#x20;   DT -->|点击进详情| API2
+        YOLO[yolo_service<br/>YOLOv8 推理]
 
-&#x20;   DT -->|SSE 流式| API3
+        RAG[rag_service<br/>知识检索]
 
+        LLM[llm_service<br/>DeepSeek 流式]
 
-
-&#x20;   API1 --> YOLO
-
-&#x20;   API2 --> CACHE
-
-&#x20;   API3 --> RAG
-
-&#x20;   API3 --> LLM
-
-&#x20;   API1 --> CACHE
+    end
 
 
 
-&#x20;   YOLO --> MODEL
+    subgraph Storage["资源"]
 
-&#x20;   YOLO --> IMGS
+        IMGS[assets/cameras/*.jpg]
 
-&#x20;   RAG --> KB
+        KB[knowledge/parking_nav.txt]
+
+        MODEL[models/best.pt]
+
+    end
+
+
+
+    OV -->|15秒轮询| API1
+
+    DT -->|点击进详情| API2
+
+    DT -->|SSE 流式| API3
+
+
+
+    API1 --> YOLO
+
+    API2 --> CACHE
+
+    API3 --> RAG
+
+    API3 --> LLM
+
+    API1 --> CACHE
+
+
+
+    YOLO --> MODEL
+
+    YOLO --> IMGS
+
+    RAG --> KB
 
 ```
 
@@ -334,7 +334,7 @@ parking-yolo/
 
 └── models/
 
-&#x20;   └── best.pt
+    └── best.pt
 
 ```
 
@@ -396,7 +396,7 @@ YOLO 模型加载完成 | 类别: ['spaces', 'space-empty', 'space-occupied'] | 
 
 RAG 知识库加载完成 | 来源: .../knowledge/parking_nav.txt | 条目数: 6
 
-&#x20;* Running on http://0.0.0.0:5000
+ * Running on http://0.0.0.0:5000
 
 ```
 
@@ -438,43 +438,43 @@ RAG 知识库加载完成 | 来源: .../knowledge/parking_nav.txt | 条目数: 6
 
 {
 
-&#x20; "code": 200,
+  "code": 200,
 
-&#x20; "data": {
+  "data": {
 
-&#x20;   "B1": {
+    "B1": {
 
-&#x20;     "floor_id": "B1",
+      "floor_id": "B1",
 
-&#x20;     "floor_name": "地下一层",
+      "floor_name": "地下一层",
 
-&#x20;     "image_file": "b1_50.jpg",
+      "image_file": "b1_50.jpg",
 
-&#x20;     "image_url": "/assets/cameras/b1_50.jpg",
+      "image_url": "/assets/cameras/b1_50.jpg",
 
-&#x20;     "total_spaces": 45,
+      "total_spaces": 45,
 
-&#x20;     "occupied": 22,
+      "occupied": 22,
 
-&#x20;     "vacant": 23,
+      "vacant": 23,
 
-&#x20;     "occupancy_rate": 48.9,
+      "occupancy_rate": 48.9,
 
-&#x20;     "detections": [
+      "detections": [
 
-&#x20;       {"class": "space-empty", "confidence": 0.87, "bbox": [120.5, 340.2, 210.8, 410.6]}
+        {"class": "space-empty", "confidence": 0.87, "bbox": [120.5, 340.2, 210.8, 410.6]}
 
-&#x20;     ]
+      ]
 
-&#x20;   },
+    },
 
-&#x20;   "B2": {}
+    "B2": {}
 
-&#x20; },
+  },
 
-&#x20; "server_time": "17:26:03",
+  "server_time": "17:26:03",
 
-&#x20; "refresh_count": 42
+  "refresh_count": 42
 
 }
 
@@ -562,15 +562,15 @@ data: [DONE]
 
 {
 
-&#x20; "status": "ok",
+  "status": "ok",
 
-&#x20; "service": "xiaoyu-parking",
+  "service": "xiaoyu-parking",
 
-&#x20; "version": "v4.0-yolo-rag",
+  "version": "v4.0-yolo-rag",
 
-&#x20; "yolo_loaded": true,
+  "yolo_loaded": true,
 
-&#x20; "rag_entries": 6
+  "rag_entries": 6
 
 }
 
@@ -658,7 +658,7 @@ parking-yolo/
 
 └── training/
 
-&#x20;   └── parking_data.yaml      # YOLOv8 训练数据集配置
+    └── parking_data.yaml      # YOLOv8 训练数据集配置
 
 ```
 
